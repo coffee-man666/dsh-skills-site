@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DSH Skills — 让 agent 学会分析你的代码库</title>
+<style>
+  :root { --ink:#0b1220; --sub:#5b6b83; --line:#e5eaf2; --blue:#2563eb; --deep:#0f2b6b; --good:#059669; --bad:#dc2626; --bg:#f7f9fc; }
+  * { box-sizing:border-box; margin:0; }
+  body { font:16px/1.7 -apple-system,"PingFang SC","Segoe UI",sans-serif; color:var(--ink); background:var(--bg); }
+  a { color:var(--blue); text-decoration:none; } a:hover { text-decoration:underline; }
+  code, pre { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  header.hero { background:linear-gradient(135deg,#0f2b6b,#2563eb); color:#fff; padding:64px 20px 88px; text-align:center; }
+  header.hero h1 { font-size:34px; letter-spacing:.5px; }
+  header.hero p { max-width:640px; margin:14px auto 0; color:#dbe7ff; font-size:17px; }
+  .badges { margin-top:18px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .badge { background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25); padding:3px 12px; border-radius:999px; font-size:13px; }
+  main { max-width:960px; margin:-48px auto 0; padding:0 20px 80px; }
+  section { background:#fff; border:1px solid var(--line); border-radius:14px; padding:28px; margin-bottom:22px; }
+  h2 { font-size:21px; margin-bottom:14px; }
+  .cmd { display:flex; align-items:center; gap:8px; background:#0b1220; color:#dbe7ff; border-radius:10px; padding:12px 14px; margin:8px 0; }
+  .cmd code { font-size:13px; flex:1; overflow-x:auto; white-space:pre; }
+  .copy { background:#1d4ed8; color:#fff; border:none; border-radius:6px; padding:4px 10px; font-size:12px; cursor:pointer; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; }
+  .card { border:1px solid var(--line); border-radius:12px; padding:18px; }
+  .card h3 { font-size:16px; font-family:ui-monospace,monospace; color:var(--deep); }
+  .card p { font-size:14px; color:var(--sub); margin-top:8px; }
+  .nums { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
+  .num { border:1px solid var(--line); border-radius:12px; padding:16px; text-align:center; }
+  .num b { display:block; font-size:26px; }
+  .num span { font-size:13px; color:var(--sub); }
+  .try { display:flex; gap:8px; margin:12px 0; }
+  .try input { flex:1; font-size:15px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; }
+  .try button { font-size:15px; padding:10px 18px; border:none; border-radius:8px; background:var(--blue); color:#fff; cursor:pointer; }
+  pre.out { background:#f1f5fb; border:1px solid var(--line); border-radius:10px; padding:14px; font-size:13px; white-space:pre-wrap; display:none; }
+  footer { text-align:center; color:var(--sub); font-size:13px; padding-bottom:40px; }
+  .links a { margin:0 10px; }
+</style>
+</head>
+<body>
+<header class="hero">
+  <h1>DSH Skills</h1>
+  <p>给 Codex / DeepSeek Harness 装上三套可复用工作流:侦察代码库、把痛点映射到 DSH 能力、用受控实验优化 agent 运行时。诚实判定,证据带 file:line。</p>
+  <div class="badges">
+    <span class="badge">v0.3.2 · MIT</span><span class="badge">Codex 插件</span><span class="badge">中文报告</span><span class="badge">一键安装</span>
+  </div>
+</header>
+<main>
+
+<section style="text-align:center;background:linear-gradient(135deg,#0f2b6b,#2563eb);color:#fff;border:none">
+  <h2 style="color:#fff">在线体验:并排实时对比</h2>
+  <p style="color:#dbe7ff;font-size:14.5px;margin-bottom:14px">同一份报告,左原版栈右 DSH 门面,云端实时双跑,两侧仪表盘并排渲染。</p>
+  <a href="https://lumen-compare-demo-production.up.railway.app/compare" target="_blank" rel="noreferrer" style="display:inline-block;background:#fff;color:#1d4ed8;font-weight:700;border-radius:9px;padding:10px 26px;font-size:15px;text-decoration:none">打开 Compare Lab →</a>
+</section>
+
+<section>
+  <h2>安装(两条命令)</h2>
+  <div class="cmd"><code id="cmd1">codex plugin marketplace add https://github.com/coffee-man666/deepseek-harness --sparse .agents/plugins --sparse plugins/dsh-skills</code><button class="copy" onclick="cp('cmd1')">复制</button></div>
+  <div class="cmd"><code id="cmd2">codex plugin add dsh-skills@deepseek-harness</code><button class="copy" onclick="cp('cmd2')">复制</button></div>
+  <p style="font-size:14px;color:var(--sub);margin-top:10px">需要支持插件机制的 Codex 版本。源码与文档:<a href="https://github.com/coffee-man666/deepseek-harness/tree/master/plugins/dsh-skills">plugins/dsh-skills</a>。</p>
+</section>
+
+<section>
+  <h2>三套技能</h2>
+  <div class="cards">
+    <div class="card"><h3>repo-recon</h3><p>只读侦察本地 Git 项目:并行子代理扫读、两阶段(广度扫描 + 深潜),产出带 file:line 证据的工作流地图与痛点清单。宿主无关,无子代理环境自动降级。</p></div>
+    <div class="card"><h3>dsh-enhancement-analysis</h3><p>把项目痛点映射到 DeepSeek Harness 原语(事件瀑布 / 会话即日志 / subagent 委托 / 执行世界替换),产出诚实分级的迁移路线图:✅ 等价 / ✅✅ 更强 / ⚠️ 硬移植,成本明示,不吹不黑。</p></div>
+    <div class="card"><h3>harness-runtime-optimizer</h3><p>把 agent 运行时当策略层做实验:可观测性地图 → 浪费诊断 → 策略干预 → 前后指标对照,ADOPT / REJECT / SEGMENT 三态裁决,禁止无数据宣布优化成功。</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>试一试:让技能分析你的代码库</h2>
+  <p style="font-size:14px;color:var(--sub)">输入仓库地址或本地路径,生成一段可直接粘贴给 Codex 的分析指令(装好插件后即可运行;分析在<b>你的</b> agent 会话里执行,repo-recon 只读不改)。</p>
+  <div class="try">
+    <input id="repo" placeholder="例如 https://github.com/owner/repo 或 ~/src/my-project">
+    <button onclick="gen()">生成分析指令</button>
+  </div>
+  <pre class="out" id="out"></pre>
+</section>
+
+<section>
+  <h2>并排实时演示</h2>
+  <p style="font-size:14px;color:var(--sub);margin-bottom:10px">同一份报告,左原版栈、右 DSH 门面,实时双跑并渲染两个仪表盘(真实 API 录制,12 秒速览全程):</p>
+  <img src="assets/compare-demo.gif" alt="并排对比演示:填入示例、双栈同跑、两侧仪表盘渲染完成" style="width:100%;border:1px solid var(--line);border-radius:10px">
+</section>
+
+<section>
+  <h2>实测效果(以 Lumen 报告流水线为样本)</h2>
+  <img src="assets/architecture.png" alt="架构对照:原版栈 vs DSH 门面" style="width:100%;border:1px solid var(--line);border-radius:10px;margin-bottom:14px">
+  <img src="assets/results.png" alt="实测对比图表:耗时、输入 token、可靠性与重放" style="width:100%;border:1px solid var(--line);border-radius:10px;margin-bottom:14px">
+  <div class="nums">
+    <div class="num"><b><span style="color:var(--bad)">0/3</span> vs <span style="color:var(--good)">3/3</span></b><span>注入 2 次 429:原版三次全挂,DSH 门面三次重试穿透</span></div>
+    <div class="num"><b>9.8s vs 80.9s</b><span>会话日志重放:跳过已付费的 extract,4 次 LLM 调用变 2 次</span></div>
+    <div class="num"><b>每调用自动入账</b><span>token / 延迟 / 重试链全部来自会话日志,无需埋点</span></div>
+  </div>
+  <p style="font-size:14px;color:var(--sub);margin-top:12px">完整对比(可视化页面 + 原始数据 + 一键复现)见
+  <a href="https://github.com/coffee-man666/vibe-report-dashboard/tree/main/dsh">vibe-report-dashboard 的 dsh/ 目录</a>(含分析报告与全部矩阵数据);同仓库还有<b>并排实时对比页</b>(左原版右 DSH)。</p>
+</section>
+
+<section>
+  <h2>链接</h2>
+  <p class="links" style="font-size:15px">
+    <a href="https://github.com/coffee-man666/deepseek-harness">deepseek-harness(fork)</a>·
+    <a href="https://github.com/coffee-man666/vibe-report-dashboard">vibe-report-dashboard(示例项目)</a>
+  </p>
+</section>
+
+</main>
+<footer>DSH Skills · 独立宣传页 · 数据来自 2026-08-19 实测矩阵</footer>
+<script>
+function cp(id) {
+  navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => {
+    const b = event.target; const t = b.textContent; b.textContent = '已复制'; setTimeout(() => b.textContent = t, 1200)
+  })
+}
+function gen() {
+  const repo = document.getElementById('repo').value.trim()
+  if (!repo) return
+  const out = document.getElementById('out')
+  out.style.display = 'block'
+  out.textContent = `请使用 dsh-enhancement-analysis 技能分析代码库:${repo}
+
+流程:
+1. 按 SKILL.md 的 Workflow 直接读码(README + 文档优先,然后主入口与流水线文件),所有结论带 file:line 证据
+2. 产出报告到 dsh-scan/dsh-enhance-<project>.md,使用技能自带模板:
+   - Pipeline 分段地图(标注 LLM 调用点与痛点编号)
+   - 映射表(✅ 等价 / ✅✅ 更强 / ⚠️ 硬移植,每条一句理由)
+   - 诚实成本、优先级矩阵、迁移路径(门面 → 试点 → 决策门)
+   - 非 DSH 发现(安全/存储等能力域外问题)与未深入清单
+3. 报告用中文,≤300 行;把 Top 发现和映射表先给我看,等我确认再动代码
+
+前置:DSH 源码定位用 $DSH_ROOT,没有则探测常见位置,再没有用 GitHub 仓库。`
+}
+</script>
+</body>
+</html>
